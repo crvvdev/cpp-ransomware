@@ -12,7 +12,7 @@ BOOL ReadFileToByteArray( const char* szFileName, PBYTE* lpBuffer, PDWORD dwData
 		goto Exit;
 	}
 
-	hFile = CreateFileA( szFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr );
+	hFile = ::CreateFileA( szFileName, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr );
 	if( !hFile || hFile == INVALID_HANDLE_VALUE )
 	{
 		printf( __FUNCTION__ " -- CreateFileA failed %d\n", ::GetLastError( ) );
@@ -35,13 +35,7 @@ BOOL ReadFileToByteArray( const char* szFileName, PBYTE* lpBuffer, PDWORD dwData
 
 	{
 		DWORD dwRead = NULL;
-		::ReadFile( hFile, *lpBuffer, *dwDataLen, &dwRead, nullptr );
-
-		//
-		// Check if returned read bytes matches
-		//
-		bResult = ( dwRead == *dwDataLen );
-
+		bResult = ::ReadFile( hFile, *lpBuffer, *dwDataLen, &dwRead, nullptr );
 		if( !bResult )
 		{
 			::VirtualFree( *lpBuffer, 0, MEM_RELEASE );
@@ -67,7 +61,7 @@ BOOL BCryptImportPrivateKey( BCRYPT_ALG_HANDLE hProvider, PBYTE lpData, ULONG dw
 	PCRYPT_PRIVATE_KEY_INFO PrivateKeyInfo = nullptr;
 	BCRYPT_RSAKEY_BLOB* prkb = nullptr;
 
-	bResult = CryptDecodeObjectEx(
+	bResult = ::CryptDecodeObjectEx(
 		X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
 		PKCS_PRIVATE_KEY_INFO,
 		lpData,
@@ -82,7 +76,7 @@ BOOL BCryptImportPrivateKey( BCRYPT_ALG_HANDLE hProvider, PBYTE lpData, ULONG dw
 		goto Exit;
 	}
 
-	bResult = CryptDecodeObjectEx(
+	bResult = ::CryptDecodeObjectEx(
 		X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
 		CNG_RSA_PRIVATE_KEY_BLOB,
 		PrivateKeyInfo->PrivateKey.pbData,
@@ -97,7 +91,7 @@ BOOL BCryptImportPrivateKey( BCRYPT_ALG_HANDLE hProvider, PBYTE lpData, ULONG dw
 		goto Exit;
 	}
 
-	Status = BCryptImportKeyPair(
+	Status = ::BCryptImportKeyPair(
 		hProvider,
 		NULL,
 		BCRYPT_RSAPRIVATE_BLOB,
@@ -118,7 +112,7 @@ Exit:
 		::LocalFree( prkb );
 
 	if( PrivateKeyInfo )
-		LocalFree( PrivateKeyInfo );
+		::LocalFree( PrivateKeyInfo );
 
 	return bResult;
 }
@@ -138,7 +132,7 @@ BOOL BCryptImportPublicKey( BCRYPT_ALG_HANDLE hProvider, PBYTE lpData, ULONG dwD
 	ULONG cb = 0;
 	BCRYPT_RSAKEY_BLOB* prkb = nullptr;
 
-	bResult = CryptDecodeObjectEx( X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+	bResult = ::CryptDecodeObjectEx( X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
 		X509_PUBLIC_KEY_INFO,
 		lpData,
 		dwDataLen,
@@ -146,11 +140,11 @@ BOOL BCryptImportPublicKey( BCRYPT_ALG_HANDLE hProvider, PBYTE lpData, ULONG dwD
 
 	if( !bResult )
 	{
-		printf( __FUNCTION__ " -- CryptDecodeObjectEx failed %d\n", ::GetLastError( ) );
+		printf( __FUNCTION__ " -- CryptDecodeObjectEx failed 0x%X\n", ::GetLastError( ) );
 		goto Exit;
 	}
 
-	bResult = CryptDecodeObjectEx( X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+	bResult = ::CryptDecodeObjectEx( X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
 		CNG_RSA_PUBLIC_KEY_BLOB,
 		PublicKeyInfo->PublicKey.pbData,
 		PublicKeyInfo->PublicKey.cbData,
@@ -158,7 +152,7 @@ BOOL BCryptImportPublicKey( BCRYPT_ALG_HANDLE hProvider, PBYTE lpData, ULONG dwD
 
 	if( !bResult )
 	{
-		printf( __FUNCTION__ " -- CryptDecodeObjectEx failed %d\n", ::GetLastError( ) );
+		printf( __FUNCTION__ " -- CryptDecodeObjectEx failed 0x%X\n", ::GetLastError( ) );
 		goto Exit;
 	}
 
@@ -237,7 +231,7 @@ BOOL RSADecrypt( PBYTE pbInputData, DWORD dwInputDataSize, PBYTE* lpDecryptedBuf
 	//
 	// Convert PEM to DER
 	//
-	bResult = CryptStringToBinaryA(
+	bResult = ::CryptStringToBinaryA(
 		( LPCSTR )pbKeyBuffer,
 		0,
 		CRYPT_STRING_BASE64HEADER,
@@ -255,7 +249,7 @@ BOOL RSADecrypt( PBYTE pbInputData, DWORD dwInputDataSize, PBYTE* lpDecryptedBuf
 	//
 	// Import RSA Public Key
 	//
-	bResult = BCryptImportPrivateKey( hProvider, DERPrivKey, DERPrivKeyLen, &hKey );
+	bResult = ::BCryptImportPrivateKey( hProvider, DERPrivKey, DERPrivKeyLen, &hKey );
 	if( !bResult )
 	{
 		printf( __FUNCTION__ " -- BCryptImportKeyPair failed!\n" );
@@ -389,15 +383,17 @@ BOOL RSAEncrypt( PBYTE pbInputData, DWORD dwInputDataSize, PBYTE* lpEncryptedBuf
 	//
 	// Convert PEM to DER
 	//
-	if( !CryptStringToBinaryA( ( LPCSTR )pbKeyBuffer,
+	bResult = ::CryptStringToBinaryA( ( LPCSTR )pbKeyBuffer,
 		0,
 		CRYPT_STRING_BASE64HEADER,
 		DERPubKey,
 		&DERPubKeyLen,
 		NULL,
-		NULL ) )
+		NULL );
+
+	if( !bResult )
 	{
-		printf( __FUNCTION__ " -- CryptStringToBinaryA failed %d\n", ::GetLastError( ) );
+		printf( __FUNCTION__ " -- CryptStringToBinaryA failed 0x%X\n", ::GetLastError( ) );
 		goto Exit;
 	}
 
@@ -522,7 +518,7 @@ BOOL AESEncrypt( PBYTE pbInputData, DWORD dwInputDataSize, PBYTE pbKey, DWORD dw
 	//
 	// Set the encryption key
 	//
-	Status = BCryptGenerateSymmetricKey(
+	Status = ::BCryptGenerateSymmetricKey(
 		hProvider,
 		&hKey,
 		NULL,
@@ -541,7 +537,7 @@ BOOL AESEncrypt( PBYTE pbInputData, DWORD dwInputDataSize, PBYTE pbKey, DWORD dw
 	//
 	// Get Required encrypted buffer length
 	//
-	Status = BCryptEncrypt(
+	Status = ::BCryptEncrypt(
 		hKey,
 		pbInputData,
 		dwInputDataSize,
@@ -575,7 +571,7 @@ BOOL AESEncrypt( PBYTE pbInputData, DWORD dwInputDataSize, PBYTE pbKey, DWORD dw
 	//
 	// Perform encryption
 	//
-	Status = BCryptEncrypt(
+	Status = ::BCryptEncrypt(
 		hKey,
 		pbInputData,
 		dwInputDataSize,
@@ -646,7 +642,7 @@ BOOL AESDecrypt( PBYTE pbInputData, DWORD dwInputDataSize, PBYTE pbKey, DWORD dw
 	//
 	// Set the encryption key
 	//
-	Status = BCryptGenerateSymmetricKey(
+	Status = ::BCryptGenerateSymmetricKey(
 		hProvider,
 		&hKey,
 		NULL,
@@ -665,7 +661,7 @@ BOOL AESDecrypt( PBYTE pbInputData, DWORD dwInputDataSize, PBYTE pbKey, DWORD dw
 	//
 	// Get Required encrypted buffer length
 	//
-	Status = BCryptDecrypt(
+	Status = ::BCryptDecrypt(
 		hKey,
 		pbInputData,
 		dwInputDataSize,
@@ -699,7 +695,7 @@ BOOL AESDecrypt( PBYTE pbInputData, DWORD dwInputDataSize, PBYTE pbKey, DWORD dw
 	//
 	// Perform encryption
 	//
-	Status = BCryptDecrypt(
+	Status = ::BCryptDecrypt(
 		hKey,
 		pbInputData,
 		dwInputDataSize,
